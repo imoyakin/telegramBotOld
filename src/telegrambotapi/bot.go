@@ -15,7 +15,7 @@ import (
 
 //APIadress = https://api.telegram.org/
 //Only need set your token and proxy
-//if you don't need proxy,set it nil
+//if you don't need proxy,don't set it
 type Bot struct {
 	APIadress string
 	Token     string
@@ -25,13 +25,23 @@ type Bot struct {
 func (c *Bot) getDate(method string) (json.RawMessage, error) {
 	proxy, err := url.Parse(c.Proxy)
 	if err != nil {
+		fmt.Println("proxy is null")
 		panic(err)
 	}
-	tr := &http.Transport{
-		Proxy: http.ProxyURL(proxy),
+	var tr *http.Transport
+	if c.Proxy == "" {
+		tr = &http.Transport{
+			Proxy: http.ProxyURL(proxy),
+			//disabled HTTP/2
+			TLSNextProto: make(map[string]func(authority string, c *tls.Conn) http.RoundTripper),
+		}
+	}
+	tr = &http.Transport{
+		//Proxy: http.ProxyURL(proxy),
 		//disabled HTTP/2
 		TLSNextProto: make(map[string]func(authority string, c *tls.Conn) http.RoundTripper),
 	}
+
 	client := &http.Client{Transport: tr}
 	resp, err := client.Get(c.APIadress + c.Token + method)
 	if err != nil {
@@ -115,6 +125,27 @@ func decodeAPIResponse(responseBody io.Reader, resp *APIResponse) (_ []byte, err
 	}
 	return data, nil
 }
+
+func (c *Bot) SetWebHook(url string,  cert []byte) {
+	var set SetWebHook
+	set.Url = url
+	//set.Certificate = 
+}
+
+func (c *Bot) DeleteWebhook() (json.RawMessage, error) {
+	var s url.Values
+	result, err := c.sendDate("deleteWebhook", s)
+	return result, err
+}
+
+// func (c*Bot) ListenMode() {
+// 	var msg Message
+
+// }
+
+// func (c *Bot)GetWebhookInfo()  {
+
+// }
 
 func structToMap(i interface{}) (values url.Values) {
 	values = url.Values{}

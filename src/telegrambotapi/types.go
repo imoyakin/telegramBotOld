@@ -61,7 +61,7 @@ type User struct {
 }
 
 type Chat struct {
-	ID                          int      `json:"id"`
+	ID                          int64      `json:"id"`
 	Type                        string   `json:"type"`
 	Title                       string   `json:"title"`
 	UserName                    string   `json:"username"`
@@ -121,6 +121,26 @@ type Message struct {
 	ConnectedWebsite      string             `json:"connected_website"`
 }
 
+type SendPhoto struct {
+	ChatID              string       `josn:"string"`
+	Photo               *InputFile   `josn:"photo"`
+	Caption             string       `json:"caption"`
+	ParseMode           string       `json:"parse_mode"`
+	DisableNotification bool         `json:"disable_notification"`
+	ReplyToMessageID    int          `json:"reply_to_message_id"`
+	ReplyMarkup         *ReplyStruct `json:"reply_markup"`
+}
+type ReplyStruct struct {
+	InlineKeyboard      *InlineKeyboard
+	ReplyKeyBoardMarkUP *ReplyKeyBoardMarkUP
+}
+
+type ReplyKeyBoardMarkUP struct {
+}
+type InputFile struct {
+	FileID string
+	File   []byte
+}
 type MessageEntity struct{}
 type Audio struct{}
 type Document struct{}

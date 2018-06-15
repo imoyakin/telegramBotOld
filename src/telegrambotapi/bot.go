@@ -2,7 +2,9 @@ package telegrambotapi
 
 import (
 	"fmt"
+	"os"
 	"reflect"
+	"regexp"
 	//"fmt"
 	"crypto/tls"
 	"encoding/json"
@@ -22,24 +24,33 @@ type Bot struct {
 	Proxy     string
 }
 
+type IBot interface {
+	GetMe() (User, error)
+	GetUpdates() ([]Update, error)
+	SendMessage(ChatID string, text string) (Message, error)
+	SendPhoto(pathOrUrl string, chatID string) (Message, error)
+	SetWebHook(config WebHookInfo)
+	DeleteWebhook() (json.RawMessage, error)
+}
+
 func (c *Bot) getDate(method string) (json.RawMessage, error) {
 	proxy, err := url.Parse(c.Proxy)
 	if err != nil {
 		fmt.Println("proxy is null")
-		panic(err)
 	}
 	var tr *http.Transport
 	if c.Proxy == "" {
+		tr = &http.Transport{
+			//Proxy: http.ProxyURL(proxy),
+			//disabled HTTP/2
+			TLSNextProto: make(map[string]func(authority string, c *tls.Conn) http.RoundTripper),
+		}
+	} else {
 		tr = &http.Transport{
 			Proxy: http.ProxyURL(proxy),
 			//disabled HTTP/2
 			TLSNextProto: make(map[string]func(authority string, c *tls.Conn) http.RoundTripper),
 		}
-	}
-	tr = &http.Transport{
-		//Proxy: http.ProxyURL(proxy),
-		//disabled HTTP/2
-		TLSNextProto: make(map[string]func(authority string, c *tls.Conn) http.RoundTripper),
 	}
 
 	client := &http.Client{Transport: tr}
@@ -56,13 +67,23 @@ func (c *Bot) getDate(method string) (json.RawMessage, error) {
 }
 
 func (c *Bot) sendDate(method string, responseBody url.Values) (json.RawMessage, error) {
+
 	proxy, err := url.Parse(c.Proxy)
 	if err != nil {
-		panic(err)
+		fmt.Println("proxy is null")
 	}
-	tr := &http.Transport{
-		Proxy:        http.ProxyURL(proxy),
-		TLSNextProto: make(map[string]func(authority string, c *tls.Conn) http.RoundTripper),
+	var tr *http.Transport
+	if c.Proxy == "" {
+		tr = &http.Transport{
+			//Proxy: http.ProxyURL(proxy),
+			//disabled HTTP/2
+			TLSNextProto: make(map[string]func(authority string, c *tls.Conn) http.RoundTripper),
+		}
+	} else {
+		tr = &http.Transport{
+			Proxy:        http.ProxyURL(proxy),
+			TLSNextProto: make(map[string]func(authority string, c *tls.Conn) http.RoundTripper),
+		}
 	}
 	client := &http.Client{Transport: tr}
 	resp, err := client.PostForm(c.APIadress+c.Token+method, responseBody)
@@ -98,13 +119,45 @@ func (c *Bot) GetUpdates() ([]Update, error) {
 	return update, err
 }
 
+func (c *Bot) SendPhoto(PathOrUrl string, chatID string) (Message, error) {
+	var photo SendPhoto
+	var replyMsg Message
+	v, err := regexp.Match("http.*", []byte(PathOrUrl))
+	if err != nil {
+		return replyMsg, err
+	}
+	switch v {
+	case true:
+		photo.Photo.FileID = PathOrUrl
+	case false:
+		file, err := os.OpenFile(PathOrUrl, os.O_RDONLY, 0666)
+		if err != nil {
+			return replyMsg, err
+		}
+		defer file.Close()
+		buff := make([]byte, 1024*4)
+		n, err := file.Read(buff)
+		if err != nil {
+			return replyMsg, err
+		}
+		photo.Photo.File = buff[:n]
+	}
+	photo.ChatID = chatID
+	resp, err := c.sendDate("sendPhoto", structToMap(photo))
+	if err != nil {
+		return replyMsg, err
+	}
+	json.Unmarshal(resp, &replyMsg)
+	return replyMsg, nil
+}
+
 func (c *Bot) SendMessage(ChatID string, text string) (Message, error) {
 	var sendMsg SendMessage
 	sendMsg.ChatID = ChatID
 	sendMsg.Text = text
 
 	respbody := structToMap(&sendMsg)
-	fmt.Println(respbody)
+	//fmt.Println(respbody)
 	resp, err := c.sendDate("sendMessage", respbody)
 	if err != nil {
 		panic(err)
@@ -126,10 +179,9 @@ func decodeAPIResponse(responseBody io.Reader, resp *APIResponse) (_ []byte, err
 	return data, nil
 }
 
-func (c *Bot) SetWebHook(url string,  cert []byte) {
-	var set SetWebHook
-	set.Url = url
-	//set.Certificate = 
+func (c *Bot) SetWebHook(config WebHookInfo) {
+	configbody := structToMap(&config)
+	c.sendDate("setWebhook", configbody)
 }
 
 func (c *Bot) DeleteWebhook() (json.RawMessage, error) {

@@ -7,6 +7,7 @@ import (
 	"os"
 	"telegrambotapi"
 	"time"
+	//"strconv"
 )
 
 func main() {
@@ -20,6 +21,15 @@ func main() {
 		fmt.Println(err)
 	}
 	fmt.Println(user)
+
+	update, err := bot.GetUpdates()
+	if err != nil {
+		fmt.Println(err)
+	}
+	path := "1.png"
+	//path := "/mnt/c/Users/reiko/Pictures/1.png"
+	//path := "C:\\Users\\reiko\\Pictures\\1.png"
+	bot.SendPhoto(path, string(update[0].Message.Chat.ID))
 
 	for {
 		update, err := bot.GetUpdates()
@@ -42,9 +52,13 @@ func main() {
 			// fmt.Println(update[a].Message.ForwardDate)
 			// fmt.Println(update[a].Message.ForwardFrom)
 			// fmt.Println(update[a].Message.ForwardFromChat)
+			// test, err1 := bot.SendMessage(strconv.Itoa(update[a].Message.Chat.ID), "咕嘟")
+			// if err1 != nil {
+			// 	fmt.Println(err1)
+			// }
+			// fmt.Println(test)
 		}
 		time.Sleep(time.Second * 10)
-		print("\033[H\033[2J")
 		fmt.Println("------------------------")
 	}
 }
@@ -70,3 +84,8 @@ func TokenRead() []string {
 	}
 	return str
 }
+
+// func webHook() {
+// 	var web telegrambotapi.WebHookInfo
+
+// }

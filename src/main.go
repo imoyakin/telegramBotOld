@@ -22,14 +22,8 @@ func main() {
 	}
 	fmt.Println(user)
 
-	update, err := bot.GetUpdates()
-	if err != nil {
-		fmt.Println(err)
-	}
-	path := "1.png"
+	//path := "1.png"
 	//path := "/mnt/c/Users/reiko/Pictures/1.png"
-	//path := "C:\\Users\\reiko\\Pictures\\1.png"
-	bot.SendPhoto(path, string(update[0].Message.Chat.ID))
 
 	for {
 		update, err := bot.GetUpdates()

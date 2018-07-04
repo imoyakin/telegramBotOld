@@ -1,11 +1,11 @@
 package telegrambotapi
 
 import (
+	"mime/multipart"
+	"bytes"
 	"fmt"
-	"os"
 	"reflect"
 	"regexp"
-	//"fmt"
 	"crypto/tls"
 	"encoding/json"
 	"io"
@@ -24,15 +24,6 @@ type Bot struct {
 	Proxy     string
 }
 
-type IBot interface {
-	GetMe() (User, error)
-	GetUpdates() ([]Update, error)
-	SendMessage(ChatID string, text string) (Message, error)
-	SendPhoto(pathOrUrl string, chatID string) (Message, error)
-	SetWebHook(config WebHookInfo)
-	DeleteWebhook() (json.RawMessage, error)
-}
-
 func (c *Bot) getDate(method string) (json.RawMessage, error) {
 	proxy, err := url.Parse(c.Proxy)
 	if err != nil {
@@ -41,14 +32,11 @@ func (c *Bot) getDate(method string) (json.RawMessage, error) {
 	var tr *http.Transport
 	if c.Proxy == "" {
 		tr = &http.Transport{
-			//Proxy: http.ProxyURL(proxy),
-			//disabled HTTP/2
 			TLSNextProto: make(map[string]func(authority string, c *tls.Conn) http.RoundTripper),
 		}
 	} else {
 		tr = &http.Transport{
 			Proxy: http.ProxyURL(proxy),
-			//disabled HTTP/2
 			TLSNextProto: make(map[string]func(authority string, c *tls.Conn) http.RoundTripper),
 		}
 	}
@@ -75,8 +63,6 @@ func (c *Bot) sendDate(method string, responseBody url.Values) (json.RawMessage,
 	var tr *http.Transport
 	if c.Proxy == "" {
 		tr = &http.Transport{
-			//Proxy: http.ProxyURL(proxy),
-			//disabled HTTP/2
 			TLSNextProto: make(map[string]func(authority string, c *tls.Conn) http.RoundTripper),
 		}
 	} else {
@@ -92,8 +78,9 @@ func (c *Bot) sendDate(method string, responseBody url.Values) (json.RawMessage,
 	}
 	var APIresp APIResponse
 	_, err = decodeAPIResponse(resp.Body, &APIresp)
+	fmt.Println(resp.Body)
 	if err != nil {
-		panic(err)
+		return APIresp.Result, err
 	}
 	fmt.Println(APIresp)
 	return APIresp.Result, err
@@ -119,6 +106,16 @@ func (c *Bot) GetUpdates() ([]Update, error) {
 	return update, err
 }
 
+func (c *Bot) uploadFile(url string, params map[string]string)(*http.Request,error){
+	body := &bytes.Buffer{}
+	writer := multipart.NewWriter(body)
+	defer writer.Close()
+	for key,val := range params{
+		_ =  writer.WriteField(key, val)
+	}
+	return http.NewRequest("POST",url, body)
+}
+
 func (c *Bot) SendPhoto(PathOrUrl string, chatID string) (Message, error) {
 	var photo SendPhoto
 	var replyMsg Message
@@ -130,20 +127,18 @@ func (c *Bot) SendPhoto(PathOrUrl string, chatID string) (Message, error) {
 	case true:
 		photo.Photo.FileID = PathOrUrl
 	case false:
-		file, err := os.OpenFile(PathOrUrl, os.O_RDONLY, 0666)
+		buff, err := ioutil.ReadFile(PathOrUrl)
 		if err != nil {
 			return replyMsg, err
 		}
-		defer file.Close()
-		buff := make([]byte, 1024*4)
-		n, err := file.Read(buff)
-		if err != nil {
-			return replyMsg, err
-		}
-		photo.Photo.File = buff[:n]
+		var s InputFile
+		s.File = buff[:]
+		photo.Photo = &s
 	}
 	photo.ChatID = chatID
-	resp, err := c.sendDate("sendPhoto", structToMap(photo))
+	var s url.Values
+	s = structToMap(&photo)
+	resp, err := c.sendDate("sendPhoto", s)
 	if err != nil {
 		return replyMsg, err
 	}
@@ -157,7 +152,6 @@ func (c *Bot) SendMessage(ChatID string, text string) (Message, error) {
 	sendMsg.Text = text
 
 	respbody := structToMap(&sendMsg)
-	//fmt.Println(respbody)
 	resp, err := c.sendDate("sendMessage", respbody)
 	if err != nil {
 		panic(err)
@@ -191,8 +185,6 @@ func (c *Bot) DeleteWebhook() (json.RawMessage, error) {
 }
 
 // func (c*Bot) ListenMode() {
-// 	var msg Message
-
 // }
 
 // func (c *Bot)GetWebhookInfo()  {
@@ -220,6 +212,15 @@ func structToMap(i interface{}) (values url.Values) {
 			v = string(f.Bytes())
 		case string:
 			v = f.String()
+		case bool:
+			if f.Bool() == true{
+				v = "0"
+			}else
+			{
+				v = "1"
+			}
+		default:
+			v = structToMap(f.Interface()).Encode()
 		}
 		values.Set(tag, v)
 	}

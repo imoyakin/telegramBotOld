@@ -128,7 +128,7 @@ type SendPhoto struct {
 	ParseMode           string       `json:"parse_mode"`
 	DisableNotification bool         `json:"disable_notification"`
 	ReplyToMessageID    int          `json:"reply_to_message_id"`
-	ReplyMarkup         *ReplyStruct `json:"reply_markup"`
+	//ReplyMarkup         *ReplyStruct `json:"reply_markup"`
 }
 type ReplyStruct struct {
 	InlineKeyboard      *InlineKeyboard
@@ -138,8 +138,8 @@ type ReplyStruct struct {
 type ReplyKeyBoardMarkUP struct {
 }
 type InputFile struct {
-	FileID string
-	File   []byte
+	FileID string `josn:"photo"`
+	File   []byte `josn:"photo"`
 }
 type MessageEntity struct{}
 type Audio struct{}
